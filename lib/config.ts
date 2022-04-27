@@ -1,15 +1,16 @@
 /// Native Modules
 import fs from 'fs';
+import path from 'path';
 import EventEmitter from 'events';
 
 /// `tiny-sconf` Imports
 import { Draft } from './draft';
-import { Alteration, IConfigEvents } from './events';
+import { Alteration, ConfigEvents } from './events';
 import { Options } from './options';
 import { Schema } from './schema';
 
 /** Configuration Wrapper Class. */
-class ConfigWrapper<T extends object, M extends any = {}> {
+class ConfigWrapper<T extends object, M extends any = {}, B extends true | false = false> {
     /****************
      *  PROPERTIES  *
      ****************/
@@ -21,7 +22,7 @@ class ConfigWrapper<T extends object, M extends any = {}> {
     private m_schema: Schema<T, M>;
 
     /** Assigned Options. */
-    private m_options: Required<Options.IConfig>;
+    private m_options: Required<Options.IConfig<B>>;
 
     /** Internal Emitter Instance. */
     private m_emitter = new EventEmitter();
@@ -44,14 +45,18 @@ class ConfigWrapper<T extends object, M extends any = {}> {
      * @param draft                 Base Draft.
      * @param opts                  Core Options.
      */
-    constructor(draft: Draft<T, M>, opts: Options.IConfig) {
+    constructor(draft: Draft<T, M>, opts: Options.IConfig<B>) {
         // generate the base schema
         this.m_schema = new Schema(draft);
 
         // assign the internal options
         this.m_options = Object.assign({}, Options.Default, opts);
 
-        // assert that the given path exists
+        // ensure the resource file has a `.json` ending
+        if (!this.path.endsWith('.json')) throw new Error('tiny::sconf | Expected ".json" file extension.');
+
+        // ensure the base file exists
+        this.m_prepareResource();
 
         // prepare the cache (if possible)
         this.m_prepareCache();
@@ -85,8 +90,11 @@ class ConfigWrapper<T extends object, M extends any = {}> {
         // write the current cache to the file
         this.m_writeFile(this.m_cache);
 
-        // and emit the change event
+        // emit the change event
         this.m_emitter.emit('change', [new Alteration(key, value)]);
+
+        // and emit the base alteration
+        if (this.m_options.exposedEvents) this.m_emitter.emit(`change:${key}`, value);
     }
 
     /**
@@ -103,8 +111,18 @@ class ConfigWrapper<T extends object, M extends any = {}> {
 
         // and emit change events for every property
         const alterations = Object.entries(next).map(([key, value]) => new Alteration<T, keyof T>(key as any, value));
+
+        // as core alterations
         this.m_emitter.emit('change', alterations);
+
+        // as specific events
+        if (this.m_options.exposedEvents) {
+            alterations.forEach((alter) => this.m_emitter.emit(`change:${alter.key}`, alter.value));
+        }
     }
+
+    /** Resets the config to the `preset` values. */
+    reset = () => this.overwrite(Object.assign({}, this.m_schema.flattened));
 
     /*******************
      *  EVENT METHODS  *
@@ -115,7 +133,7 @@ class ConfigWrapper<T extends object, M extends any = {}> {
      * @param eventName                     Config Event.
      * @param listener                      Listener Callback.
      */
-    on<K extends keyof IConfigEvents<T>>(eventName: K, listener: IConfigEvents<T>[K]) {
+    on<K extends keyof ConfigEvents<B, T>>(eventName: K, listener: ConfigEvents<B, T>[K]) {
         this.m_emitter.on(eventName as string, listener as any);
     }
 
@@ -124,7 +142,7 @@ class ConfigWrapper<T extends object, M extends any = {}> {
      * @param eventName                     Config Event.
      * @param listener                      Listener Callback.
      */
-    once<K extends keyof IConfigEvents<T>>(eventName: K, listener: IConfigEvents<T>[K]) {
+    once<K extends keyof ConfigEvents<B, T>>(eventName: K, listener: ConfigEvents<B, T>[K]) {
         this.m_emitter.once(eventName as string, listener as any);
     }
 
@@ -132,8 +150,8 @@ class ConfigWrapper<T extends object, M extends any = {}> {
      * Ignores events given by the event name.
      * @param eventName                     Event to ignore.
      */
-    ignore<K extends keyof IConfigEvents<T>>(eventName: K) {
-        this.m_emitter.removeAllListeners(eventName);
+    ignore<K extends keyof ConfigEvents<B, T>>(eventName: K) {
+        this.m_emitter.removeAllListeners(eventName as string);
     }
 
     /*********************
@@ -143,6 +161,16 @@ class ConfigWrapper<T extends object, M extends any = {}> {
     /** Prepares the internal cache. */
     private m_prepareCache = () => {
         this.m_cache = this.m_readFile();
+    };
+
+    /** Prepares the base configuration resource. */
+    private m_prepareResource = () => {
+        // ignore if the file already exists
+        if (fs.existsSync(this.path)) return;
+
+        // and create if possible
+        if (!this.m_options.allowCreate) throw new Error('tiny::sconf | Resource file does not exist.');
+        fs.mkdirSync(path.dirname(this.path), { recursive: true });
     };
 
     /** Safely reads the current configuration. */
@@ -162,7 +190,16 @@ class ConfigWrapper<T extends object, M extends any = {}> {
      * @param next                      Next config.
      */
     private m_writeFile = (next: T) => {
-        fs.writeFileSync(this.path, JSON.stringify(next), 'utf-8');
+        try {
+            fs.writeFileSync(this.path, JSON.stringify(next), 'utf-8');
+        } catch (err) {
+            // if a bad error, then rethrow
+            if ((<any>err).code !== 'ENOENT') throw err;
+
+            // otherwise attempt writing again
+            this.m_prepareResource();
+            this.m_writeFile(next);
+        }
     };
 }
 
@@ -173,6 +210,8 @@ export namespace Config {
      * @param draft                     Schema Draft.
      * @param opts                      Config Options.
      */
-    export const from = <T extends object, M extends any = {}>(draft: Draft<T, M>, opts: Options.IConfig) =>
-        new ConfigWrapper(draft, opts);
+    export const from = <T extends object, M extends any = {}, B extends true | false = false>(
+        draft: Draft<T, M>,
+        opts: Options.IConfig<B>
+    ) => new ConfigWrapper(draft, opts);
 }

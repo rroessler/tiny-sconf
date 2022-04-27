@@ -2,10 +2,21 @@
  *  TYPEDEFS  *
  **************/
 
-/** Available Configuration Event Listeners. */
-export interface IConfigEvents<T extends object, K extends keyof T = keyof T> {
+/** @ts-ignore : Typed Configuration Alterations. */
+type TypedAlterations<T extends object, K extends keyof T> = Record<`change:${K}`, (value: T[K]) => void>;
+
+/** Default Configuration Events. */
+type BaseConfigEvents<T extends object, K extends keyof T = keyof T> = {
     change: (alterations: Alteration<T, K>[]) => void;
-}
+};
+
+/**  Typedef Configuration Events. */
+type TypedConfigEvents<T extends object, K extends keyof T = keyof T> = TypedAlterations<T, K> & BaseConfigEvents<T, K>;
+
+/** Exposed Configuration Events. */
+export type ConfigEvents<B extends true | false, T extends object, K extends keyof T = keyof T> = B extends true
+    ? TypedConfigEvents<T, K>
+    : BaseConfigEvents<T, K>;
 
 /********************
  *  IMPLEMENTATION  *
