@@ -31,7 +31,7 @@ const draft: Draft<TestData> = {
     animal: Preset('unicorn'),
     fruit: Preset('apple'),
     person: Preset({ name: 'John', age: 21 }),
-    list: Preset([1, 2, 3, 4, 5])
+    list: Preset([1, 2, 3, 4, 5]),
 };
 
 /// Base Configuration.
