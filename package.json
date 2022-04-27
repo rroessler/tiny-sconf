@@ -5,11 +5,20 @@
     "main": "dist/index.js",
     "types": "dist/types/index.d.ts",
     "scripts": {
-        "publish": "npm run test && npm run dist",
+        "publish": "npm run test && npm run dist && npm publish",
         "dist": "tsc",
         "test": "ts-mocha -p ./tsconfig.json lib/tests/**/*.spec.ts"
     },
-    "keywords": [],
+    "keywords": [
+        "config",
+        "schema",
+        "draft",
+        "tiny",
+        "javascript",
+        "typed",
+        "settings",
+        "json"
+    ],
     "author": "rroesslerio",
     "license": "MIT",
     "repository": {
