@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "ES6",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+
+        "strict": true,
+        "noImplicitOverride": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+
+        "rootDir": "lib",
+        "outDir": "dist",
+        "declaration": true,
+        "declarationDir": "dist/types"
+    },
+
+    "include": ["lib"],
+    "exclude": ["node_modules", "dist"]
+}
