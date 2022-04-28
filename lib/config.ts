@@ -91,10 +91,7 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
         this.m_writeFile(this.m_cache);
 
         // emit the change event
-        this.m_emitter.emit('change', [new Alteration(key, value)]);
-
-        // and emit the base alteration
-        if (this.m_options.exposedEvents) this.m_emitter.emit(`change:${key}`, value);
+        this.m_emitAlterations([new Alteration(key, value)]);
     }
 
     /**
@@ -113,12 +110,7 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
         const alterations = Object.entries(next).map(([key, value]) => new Alteration<T, keyof T>(key as any, value));
 
         // as core alterations
-        this.m_emitter.emit('change', alterations);
-
-        // as specific events
-        if (this.m_options.exposedEvents) {
-            alterations.forEach((alter) => this.m_emitter.emit(`change:${alter.key}`, alter.value));
-        }
+        this.m_emitAlterations(alterations);
     }
 
     /** Resets the config to the `preset` values. */
@@ -153,6 +145,24 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
     ignore<K extends keyof ConfigEvents<B, T>>(eventName: K) {
         this.m_emitter.removeAllListeners(eventName as string);
     }
+
+    /**
+     * Triggers an event manually for the given keys.
+     * @param keys                          Properties to trigger an event for.
+     */
+    trigger(...keys: (keyof T)[]) {
+        this.m_emitAlterations(keys.map((key) => new Alteration(key, this.m_cache[key])));
+    }
+
+    /**
+     * Helper method that allows for emitting alterations in batches.
+     * @param alterations                   Alterations to emit.
+     */
+    private m_emitAlterations = (alterations: Alteration<T, keyof T>[]) => {
+        this.m_emitter.emit('change', alterations);
+        if (!this.m_options.exposedEvents) return;
+        alterations.forEach((alter) => this.m_emitter.emit(`change:${alter.key}`, alter.value));
+    };
 
     /*********************
      *  PRIVATE METHODS  *

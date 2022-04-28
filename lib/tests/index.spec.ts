@@ -78,7 +78,7 @@ describe('Config', function () {
     // Event-Listener Test
     describe('#once', function () {
         it(`['animal'] should emit alteration of "dog"`, async function () {
-            const promise = new Promise<void>((resolve) => {
+            return new Promise<void>((resolve) => {
                 // attempt listening for the result
                 conf.once('change:animal', (value) => {
                     assert.equal(value, 'dog');
@@ -88,8 +88,37 @@ describe('Config', function () {
                 // emit the request
                 conf.alter('animal', 'dog');
             });
+        });
+    });
 
-            await promise;
+    // Trigger Test
+    describe('#trigger', function () {
+        it(`['fruit', 'animal'] should emit no change`, async function () {
+            await new Promise<void>((resolve) => {
+                const fruit = conf.read('fruit');
+
+                // attempt listening for the results
+                conf.once('change:fruit', (value) => {
+                    assert.equal(value, fruit);
+                    resolve();
+                });
+
+                // emit the request
+                conf.trigger('fruit');
+            });
+
+            await new Promise<void>((resolve) => {
+                const animal = conf.read('animal');
+
+                // attempt listening for the results
+                conf.once('change:animal', (value) => {
+                    assert.equal(value, animal);
+                    resolve();
+                });
+
+                // emit the request
+                conf.trigger('animal');
+            });
         });
     });
 

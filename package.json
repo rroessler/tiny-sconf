@@ -1,11 +1,14 @@
 {
     "name": "tiny-sconf",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "description": "Typed Schema Configurations",
     "main": "dist/index.js",
     "types": "dist/types/index.d.ts",
+    "files": [
+        "dist"
+    ],
     "scripts": {
-        "publish": "npm run test && npm run dist && npm publish",
+        "prepublish": "npm run test && npm run dist",
         "dist": "tsc",
         "test": "ts-mocha -p ./tsconfig.json lib/tests/**/*.spec.ts"
     },
