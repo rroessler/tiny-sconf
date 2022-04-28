@@ -8,7 +8,7 @@
         "dist"
     ],
     "scripts": {
-        "prepublish": "npm run test && npm run dist",
+        "prepublishOnly": "npm run test && npm run dist",
         "dist": "tsc",
         "test": "ts-mocha -p ./tsconfig.json lib/tests/**/*.spec.ts"
     },
