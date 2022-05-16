@@ -31,6 +31,11 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
      *  GETTERS / SETTERS  *
      ***********************/
 
+    /** Gets the current configuration cache (or file if not using the cache). */
+    private get m_current() {
+        return this.m_options.useCache ? this.m_cache : this.m_readFile();
+    }
+
     /** Configuration File path. */
     get path() {
         return this.m_options.path;
@@ -73,7 +78,7 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
     read(): T;
     read<K extends keyof T>(key: K): T[K];
     read<K extends keyof T>(key?: K): any {
-        const conf = this.m_options.useCache ? this.m_cache : this.m_readFile();
+        const conf = this.m_current;
         return key === undefined ? conf : conf[key];
     }
 
@@ -84,11 +89,14 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
      * @param value                         Value to set.
      */
     alter<K extends keyof T>(key: K, value: T[K]) {
-        // modify the current cache value regardless
-        this.m_cache[key] = value;
+        // get the current configuration
+        const conf = this.m_current;
 
-        // write the current cache to the file
-        this.m_writeFile(this.m_cache);
+        // modify the current value (if cached this will alter the reference)
+        conf[key] = value;
+
+        // write the current configuration to the file
+        this.m_writeFile(conf);
 
         // emit the change event
         this.m_emitAlterations([new Alteration(key, value)]);
@@ -100,8 +108,8 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
      * @param next                          Next configuration value.
      */
     overwrite(next: T) {
-        // override the cache completely
-        this.m_cache = next;
+        // override the cache completely if necessary
+        if (this.m_options.useCache) this.m_cache = next;
 
         // write the cache to the file
         this.m_writeFile(next);
@@ -151,7 +159,8 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
      * @param keys                          Properties to trigger an event for.
      */
     trigger(...keys: (keyof T)[]) {
-        this.m_emitAlterations(keys.map((key) => new Alteration(key, this.m_cache[key])));
+        const conf = this.m_current; // get the configuration reference
+        this.m_emitAlterations(keys.map((key) => new Alteration(key, conf[key])));
     }
 
     /**
@@ -170,7 +179,7 @@ class ConfigWrapper<T extends object, M extends any = {}, B extends true | false
 
     /** Prepares the internal cache. */
     private m_prepareCache = () => {
-        this.m_cache = this.m_readFile();
+        if (this.m_options.useCache) this.m_cache = this.m_readFile();
     };
 
     /** Prepares the base configuration resource. */
